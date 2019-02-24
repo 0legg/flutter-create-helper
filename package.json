@@ -3,6 +3,7 @@
 	"displayName": "Flutter Create helper",
 	"description": "Small widget to keep track of https://flutter.dev/create contest limits.",
 	"version": "1.0.0",
+	"license": "MIT",
 	"engines": {
 		"vscode": "^1.31.0"
 	},
