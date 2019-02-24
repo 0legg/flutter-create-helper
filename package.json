@@ -2,7 +2,7 @@
 	"name": "flutter-create-helper",
 	"displayName": "Flutter Create helper",
 	"description": "Small widget to keep track of https://flutter.dev/create contest limits.",
-	"version": "0.0.1",
+	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.31.0"
 	},
