@@ -1,27 +1,68 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import { promisify } from 'util';
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+const statAsync = promisify(fs.stat);
+
+const MAX_SIZE = 5120; // 5 KB
+let countStatusBarItem: vscode.StatusBarItem;
+let sizeCache: Map<string, number> = new Map<string, number>();
+
 export function activate(context: vscode.ExtensionContext) {
+	countStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-		console.log('Congratulations, your extension "flutter-create-helper" is now active!');
+	let watcher = vscode.workspace.createFileSystemWatcher("**/*.dart", false, false, false);
+	watcher.onDidChange(onSave);
+	watcher.onDidCreate(onSave);
+	watcher.onDidDelete(onDelete);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('extension.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
+	vscode.workspace.onDidChangeTextDocument(event => 
+		updateSize(event.document.fileName, event.document.getText().length));
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World!');
-	});
+	context.subscriptions.push(watcher);
+	countStatusBarItem.text = `$(megaphone) Dart files detected`;
+	countStatusBarItem.show();
 
-	context.subscriptions.push(disposable);
+	countCharactersInitial();
 }
 
-// this method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+	countStatusBarItem.dispose();
+}
+
+function onSave(uri: vscode.Uri) {
+	updatePath(uri.fsPath);
+}
+
+function onDelete(uri: vscode.Uri) {
+	sizeCache.delete(uri.fsPath);
+	updateBadge();
+}
+
+function countCharactersInitial(): void {
+	vscode.workspace.findFiles("**/*.dart")
+		.then(uris => {
+			uris
+				.map(uri => uri.fsPath)
+				.forEach(updatePath);
+		});
+}
+
+function updatePath(path: string) {
+	statAsync(path)
+		.then(stat => updateSize(path, stat.size))
+		.catch(err => console.error(err));
+}
+
+function updateSize(path: string, size: number) {
+	sizeCache.set(path, size);
+	updateBadge();
+}
+
+function updateBadge() {
+	let totalSize = 0;
+	sizeCache.forEach(value => totalSize += value);
+	let icon = totalSize > MAX_SIZE ? `$(thumbsdown)` : `$(thumbsup)`;
+	countStatusBarItem.text = `${icon} ${totalSize}`;
+	countStatusBarItem.show();
+}
